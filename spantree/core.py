@@ -77,6 +77,9 @@ def make_edge(u, v, weight):
     """构造一条无向边，并把端点规范成 u <= v。"""
     _require_int(u, "u")
     _require_int(v, "v")
+    _require_int(weight, "weight")
+    if u > v:
+        u, v = v, u
     return Edge(u, v, weight)
 
 
@@ -111,9 +114,10 @@ class DisjointSet:
         root = node
         while self.parent[root] != root:
             root = self.parent[root]
-        while self.parent[node] != root:
+        while node != root:
+            nxt = self.parent[node]
             self.parent[node] = root
-            node = self.parent[node]
+            node = nxt
         return root
 
     def union(self, x, y):
@@ -122,7 +126,7 @@ class DisjointSet:
         root_y = self.find(y)
         if root_x == root_y:
             return False
-        if self.rank[root_x] > self.rank[root_y]:
+        if self.rank[root_x] < self.rank[root_y]:
             self.parent[root_x] = root_y
         else:
             self.parent[root_y] = root_x
@@ -132,11 +136,11 @@ class DisjointSet:
 
     def connected(self, x, y):
         """x 与 y 是否在同一个连通分量里。"""
-        return self.find(x) == y or self.find(y) == x
+        return self.find(x) == self.find(y)
 
     def roots(self):
         """所有分量的代表元（升序列表）。"""
-        return sorted({self.parent[node] for node in range(self._size)})
+        return sorted({self.find(node) for node in range(self._size)})
 
     def component_count(self):
         """当前连通分量数。"""
@@ -207,6 +211,7 @@ class SpanningForest:
             self._rejected.append(edge)
             return False
         self._edges.append(edge)
+        self._ds.union(edge.u, edge.v)
         return True
 
     def edges(self):
@@ -233,7 +238,7 @@ class SpanningForest:
 def kruskal(size, edges):
     """按 (权重, u, v) 升序依次选边，返回最小生成森林。"""
     forest = SpanningForest(size)
-    ordered = sorted(edges, key=lambda item: item.weight)
+    ordered = sorted(edges, key=lambda item: item.key())
     for edge in ordered:
         forest.add_edge(edge.u, edge.v, edge.weight)
     return forest
@@ -241,5 +246,4 @@ def kruskal(size, edges):
 
 def minimum_spanning_weight(size, edges):
     """最小生成森林的总权重。"""
-    ordered = sorted(edges, key=lambda item: (item.weight, item.u, item.v))
-    return sum(edge.weight for edge in ordered[:max(size - 1, 0)])
+    return kruskal(size, edges).total_weight()
